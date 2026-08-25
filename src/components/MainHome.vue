@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 
 // 3~4세 아이들이 직관적으로 누르고 반응을 즐길 수 있는 캐릭터 데이터
 const characters = ref([
@@ -13,11 +13,62 @@ const activeCard = ref(null);
 const sparkles = ref([]);
 let audioCtx = null;
 
-// 유아 맞춤 톡톡 튀는 효과음 (Web Audio API)
+// --- 배경음악 제어 로직 ---
+const bgmRef = ref(null);
+const isBgmPlaying = ref(false);
+
+function playBgm() {
+  if (bgmRef.value) {
+    bgmRef.value.play().then(() => {
+      isBgmPlaying.value = true;
+    }).catch(() => {
+      // 브라우저 자동재생 정책으로 실패 시 대기
+      isBgmPlaying.value = false;
+    });
+  }
+}
+
+function toggleBgm() {
+  if (!bgmRef.value) return;
+  if (isBgmPlaying.value) {
+    bgmRef.value.pause();
+    isBgmPlaying.value = false;
+  } else {
+    playBgm();
+  }
+}
+
+// 화면 첫 인터랙션 시 자동재생 차단 해제
+function handleFirstUserGesture() {
+  if (bgmRef.value && !isBgmPlaying.value) {
+    playBgm();
+  }
+  window.removeEventListener('pointerdown', handleFirstUserGesture);
+}
+
+onMounted(() => {
+  if (bgmRef.value) {
+    bgmRef.value.volume = 0.4;
+    playBgm();
+  }
+  window.addEventListener('pointerdown', handleFirstUserGesture);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('pointerdown', handleFirstUserGesture);
+  if (bgmRef.value) {
+    bgmRef.value.pause();
+  }
+});
+
+// --- 유아 맞춤 톡톡 튀는 독립 효과음 (Web Audio API) ---
 function playPopSound() {
   try {
     if (!audioCtx) {
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume();
     }
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
@@ -47,7 +98,6 @@ function triggerInteraction(char, event) {
   playPopSound();
   activeCard.value = char.id;
 
-  // 클릭/터치 좌표 획득
   const clientX = event.clientX || (event.touches && event.touches[0]?.clientX) || window.innerWidth / 2;
   const clientY = event.clientY || (event.touches && event.touches[0]?.clientY) || window.innerHeight / 2;
 
@@ -75,15 +125,37 @@ function triggerInteraction(char, event) {
 
 <template>
   <div class="home-screen">
-    <!-- 배경 오버레이 (배경 이미지의 깊이감과 가독성 유지) -->
+    <!-- 배경 오버레이 -->
     <div class="bg-overlay"></div>
+
+    <!-- 배경음악 오디오 태그 (반복 재생) -->
+    <audio ref="bgmRef" src="/assets/sounds/rhythm_loop.mp3" loop preload="auto"></audio>
+
+    <!-- FloatingSnb 위에 배치되는 BGM ON/OFF 버튼 -->
+    <button
+      class="bgm-toggle-btn"
+      :class="{ 'bgm-off': !isBgmPlaying }"
+      aria-label="배경음악 켜기/끄기"
+      @click="toggleBgm"
+    >
+      <!-- 음악 켜짐 아이콘 -->
+      <svg v-if="isBgmPlaying" class="bgm-icon" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
+      </svg>
+      <!-- 음악 꺼짐 아이콘 -->
+      <svg v-else class="bgm-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 18V5l12-2v13" />
+        <circle cx="6" cy="18" r="3" fill="currentColor" />
+        <circle cx="18" cy="16" r="3" fill="currentColor" />
+        <line x1="2" y1="2" x2="22" y2="22" stroke="#ff4757" stroke-width="3" />
+      </svg>
+    </button>
 
     <div class="main-content">
       <!-- 메인 타이틀 바운스 박스 -->
       <div class="title-container">
         <span class="rainbow-badge">🎪 fransooa`s playground 🎪</span>
         <h1 class="main-title">fransooa 의 양손 놀이터</h1>
-        <!-- <p class="sub-title">👇 왼쪽 아래 <b>[메뉴 버튼]</b>을 눌러 게임을 골라요!</p> -->
       </div>
 
       <!-- 인터랙티브 캐릭터 카드 리스트 -->
@@ -99,7 +171,6 @@ function triggerInteraction(char, event) {
           <span class="card-icon">{{ char.icon }}</span>
           <span class="card-name">{{ char.name }}</span>
 
-          <!-- 누르면 나타나는 말풍선 -->
           <Transition name="bubble-pop">
             <div v-if="activeCard === char.id" class="speech-bubble">
               {{ char.bubble }}
@@ -127,12 +198,11 @@ function triggerInteraction(char, event) {
 </template>
 
 <style scoped>
-/* 1. 배경 화면 설정 (main.jpg 적용) */
 .home-screen {
   position: relative;
   width: 100vw;
   height: 100vh;
-  background-image: url('/public/images/main.jpg'); /* public/main.jpg 기준 */
+  background-image: url('/public/images/main.jpg');
   background-size: cover;
   background-position: center bottom;
   background-repeat: no-repeat;
@@ -143,7 +213,6 @@ function triggerInteraction(char, event) {
   touch-action: manipulation;
 }
 
-/* 배경 위 은은한 딤 레이어 */
 .bg-overlay {
   position: absolute;
   top: 0;
@@ -154,7 +223,39 @@ function triggerInteraction(char, event) {
   pointer-events: none;
 }
 
-/* 2. 중앙 컨텐츠 영역 */
+/* FloatingSnb(bottom: 20px, left: 20px) 바로 위에 배치되는 64px 원형 버튼 */
+.bgm-toggle-btn {
+  position: fixed;
+  left: 20px;
+  bottom: 96px; /* FloatingSnb(64px) + 여백(12px) + 기본 bottom(20px) */
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: #1dd1a1;
+  color: #ffffff;
+  border: 4px solid #ffffff;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+  z-index: 500;
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), background-color 0.2s;
+}
+
+.bgm-toggle-btn:active {
+  transform: scale(0.92);
+}
+
+.bgm-toggle-btn.bgm-off {
+  background: #8395a7;
+}
+
+.bgm-icon {
+  width: 30px;
+  height: 30px;
+}
+
 .main-content {
   position: relative;
   z-index: 10;
@@ -165,7 +266,6 @@ function triggerInteraction(char, event) {
   margin-bottom: 500px;
 }
 
-/* 상단 배지 & 타이틀 */
 .title-container {
   background: rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(8px);
@@ -203,13 +303,6 @@ function triggerInteraction(char, event) {
   margin: 4px 0 8px 0;
 }
 
-.sub-title {
-  font-size: clamp(14px, 2.5vw, 17px);
-  color: #2d3436;
-  font-weight: 800;
-}
-
-/* 3. 유아용 인터랙티브 캐릭터 카드 리스트 */
 .char-showcase {
   display: flex;
   flex-wrap: wrap;
@@ -250,7 +343,6 @@ function triggerInteraction(char, event) {
   font-size: 24px;
 }
 
-/* 말풍선 팝업 */
 .speech-bubble {
   position: absolute;
   top: -46px;
@@ -279,7 +371,6 @@ function triggerInteraction(char, event) {
   border-color: #2d3436 transparent transparent;
 }
 
-/* 말풍선 애니메이션 */
 .bubble-pop-enter-active,
 .bubble-pop-leave-active {
   transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -290,7 +381,6 @@ function triggerInteraction(char, event) {
   transform: translate(-50%, 10px) scale(0.7);
 }
 
-/* 4. 별가루 파티클 */
 .sparkle-particle {
   position: fixed;
   font-size: 22px;
@@ -310,7 +400,6 @@ function triggerInteraction(char, event) {
   }
 }
 
-/* 모바일 세로 화면 대응 */
 @media (max-width: 480px) {
   .title-container {
     padding: 12px 18px;

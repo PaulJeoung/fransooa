@@ -5,6 +5,7 @@ import MainHome from './components/MainHome.vue';
 import FloatingSnb from './components/FloatingSnb.vue';
 import MagicDrawing from './components/games/MagicDrawing.vue';
 import EmojiPop from './components/games/EmojiPop.vue';
+import TraceDrawing from './components/games/TraceDrawing.vue';
 
 const isLoading = ref(true);
 const currentScreen = ref('home');
@@ -26,6 +27,7 @@ function handleNavigate(target) {
 
     <template v-else> <!-- 화면 라우팅 -->
       <MainHome v-if="currentScreen === 'home'" />
+      <TraceDrawing v-else-if="currentScreen === 'trace-drawing'" />
       <MagicDrawing v-else-if="currentScreen === 'magic-drawing'" />
       <EmojiPop v-else-if="currentScreen === 'emoji-pop'" />
 

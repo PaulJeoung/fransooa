@@ -15,24 +15,32 @@ function selectMenu(target) {
     <!-- 펼침 메뉴 리스트 -->
     <Transition name="snb-pop">
       <div v-if="isOpen" class="snb-menu">
+        <!-- 1. 메인 홈 버튼 -->
         <button class="snb-item home-btn" @click="selectMenu('home')">
-          <!-- 홈 아이콘 SVG -->
           <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
             <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
           </svg>
           <span>메인 놀이터</span>
         </button>
 
+        <!-- 2. 신규: 한글 & 숫자 그리기 버튼 (연필 SVG) -->
+        <button class="snb-item" @click="selectMenu('trace-drawing')">
+          <svg class="icon icon-green" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" />
+          </svg>
+          <span>한글·숫자 그리기</span>
+        </button>
+
+        <!-- 3. 매직 컬러링 버튼 (팔레트 SVG) -->
         <button class="snb-item" @click="selectMenu('magic-drawing')">
-          <!-- 팔레트 아이콘 SVG -->
           <svg class="icon icon-orange" viewBox="0 0 24 24" fill="currentColor">
             <path d="M12 3c-4.97 0-9 4.03-9 9 0 2.12.74 4.07 1.97 5.61L4.35 19c-.39.39-.39 1.02 0 1.41.39.39 1.02.39 1.41 0l1.9-1.9C9.22 19.34 10.56 20 12 20c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-4.5 9c-.83 0-1.5-.67-1.5-1.5S6.67 9 7.5 9s1.5.67 1.5 1.5S8.33 12 7.5 12zm3-4c-.83 0-1.5-.67-1.5-1.5S9.67 5 10.5 5s1.5.67 1.5 1.5S11.33 8 10.5 8zm3 0c-.83 0-1.5-.67-1.5-1.5S12.67 5 13.5 5s1.5.67 1.5 1.5S14.33 8 13.5 8zm3 4c-.83 0-1.5-.67-1.5-1.5S15.67 9 16.5 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z" />
           </svg>
           <span>매직 손가락 컬러링</span>
         </button>
 
+        <!-- 4. 이모티콘 팡팡 버튼 (풍선 SVG) -->
         <button class="snb-item" @click="selectMenu('emoji-pop')">
-          <!-- 풍선 아이콘 SVG -->
           <svg class="icon icon-pink" viewBox="0 0 24 24" fill="currentColor">
             <path d="M12 2C8.13 2 5 5.13 5 9c0 4.17 4.42 9.92 6.24 12.11.4.48 1.13.48 1.53 0C14.58 18.92 19 13.17 19 9c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
           </svg>
@@ -48,12 +56,12 @@ function selectMenu(target) {
       aria-label="메뉴 열기/닫기"
       @click="isOpen = !isOpen"
     >
-      <!-- 닫기(X) 아이콘 -->
+      <!-- 열렸을 때: 닫기(X) 아이콘 -->
       <svg v-if="isOpen" class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
         <line x1="18" y1="6" x2="6" y2="18" />
         <line x1="6" y1="6" x2="18" y2="18" />
       </svg>
-      <!-- 햄버거 메뉴 아이콘 -->
+      <!-- 닫혔을 때: 햄버거 메뉴 아이콘 -->
       <svg v-else class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
         <line x1="4" y1="6" x2="20" y2="6" />
         <line x1="4" y1="12" x2="20" y2="12" />
@@ -64,7 +72,7 @@ function selectMenu(target) {
 </template>
 
 <style scoped>
-/* 1. 화면 왼쪽 하단 고정 */
+/* 1. 화면 왼쪽 하단 고정 (기존 위치 및 BGM 버튼과의 연동 유지) */
 .snb-wrapper {
   position: fixed;
   left: 20px;
@@ -115,7 +123,7 @@ function selectMenu(target) {
   flex-direction: column;
   gap: 8px;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-  min-width: 210px;
+  min-width: 220px;
   transform-origin: bottom left;
 }
 
@@ -144,16 +152,18 @@ function selectMenu(target) {
   color: #ffffff;
 }
 
+/* 메뉴별 아이콘 공통 및 개별 색상 */
 .icon {
   width: 22px;
   height: 22px;
   flex-shrink: 0;
 }
 
+.icon-green { color: #2ed573; }
 .icon-orange { color: #e17055; }
 .icon-pink { color: #ff4081; }
 
-/* 팝업 등장 애니메이션 */
+/* 팝업 바운스 등장 애니메이션 */
 .snb-pop-enter-active,
 .snb-pop-leave-active {
   transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
