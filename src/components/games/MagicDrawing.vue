@@ -13,7 +13,7 @@ let isDrawing = false;
 let audioCtx = null;
 let lastSoundTime = 0;
 
-// 1. 유아용 실로폰 톤 사운드
+// 실로폰 사운드
 function playSparkleSound() {
   const now = Date.now();
   if (now - lastSoundTime < 80) return;
@@ -23,25 +23,22 @@ function playSparkleSound() {
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
-
     const notes = [523.25, 659.25, 783.99, 1046.50];
     const note = notes[Math.floor(Math.random() * notes.length)];
 
     osc.type = 'triangle';
     osc.frequency.setValueAtTime(note, audioCtx.currentTime);
-
     gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.12);
 
     osc.connect(gain);
     gain.connect(audioCtx.destination);
-
     osc.start();
     osc.stop(audioCtx.currentTime + 0.12);
   } catch (e) {}
 }
 
-// 2. 축하 팡파레 사운드
+// 팡파레 사운드
 function playFanfare() {
   try {
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -62,7 +59,7 @@ function playFanfare() {
   } catch (e) {}
 }
 
-// 3. 별가루 파티클 생성
+// 파티클
 function spawnSparkle(x, y) {
   const id = Math.random();
   const icons = ['✨', '⭐', '💖'];
@@ -74,36 +71,42 @@ function spawnSparkle(x, y) {
     tx: `${(Math.random() - 0.5) * 90}px`,
     ty: `${(Math.random() - 0.5) * 90}px`
   };
-
   sparkles.value.push(sparkle);
   setTimeout(() => {
     sparkles.value = sparkles.value.filter(s => s.id !== id);
   }, 500);
 }
 
-// 4. 캔버스 리셋 및 덮개 그리기
+// 캔버스 초기화 (회색 스크래치 덮개)
 function resetCanvas() {
   const canvas = canvasRef.value;
   if (!canvas) return;
+
   const rect = canvas.getBoundingClientRect();
+  if (rect.width === 0 || rect.height === 0) return;
+
   canvas.width = rect.width;
   canvas.height = rect.height;
 
   ctx = canvas.getContext('2d', { willReadFrequently: true });
   ctx.globalCompositeOperation = 'source-over';
+  
+  // 파스텔 톤 회색 덮개 레이어
   ctx.fillStyle = '#dfe6e9';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  ctx.fillStyle = '#b2bec3';
-  ctx.font = 'bold 20px sans-serif';
+  // 중앙 안내 문구
+  ctx.fillStyle = '#636e72';
+  ctx.font = 'bold 22px sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText('손가락으로 쓱쓱 문질러봐요! ✨', canvas.width / 2, canvas.height / 2);
+  ctx.textBaseline = 'middle';
+  ctx.fillText('✨ 손가락으로 쓱쓱 문질러봐요! ✨', canvas.width / 2, canvas.height / 2);
 
   progressWidth.value = 0;
   showCelebration.value = false;
 }
 
-// 5. 칠한 영역 비율 계산 (샘플링 기반)
+// 영역 계산
 function calculateClearedArea() {
   if (!ctx || !canvasRef.value) return;
   const canvas = canvasRef.value;
@@ -123,7 +126,6 @@ function calculateClearedArea() {
   const percentage = Math.min(100, Math.round(ratio * 130));
   progressWidth.value = percentage;
 
-  // 75% 이상 문지르면 100% 도달 및 축하 연출
   if (percentage >= 100 && !showCelebration.value) {
     showCelebration.value = true;
     playFanfare();
@@ -133,7 +135,7 @@ function calculateClearedArea() {
   }
 }
 
-// 6. 스크래치 지우개 동작
+// 스크래치 지우개 동작
 function scratch(clientX, clientY) {
   if (!ctx || !canvasRef.value) return;
   const rect = canvasRef.value.getBoundingClientRect();
@@ -142,7 +144,7 @@ function scratch(clientX, clientY) {
 
   ctx.globalCompositeOperation = 'destination-out';
   ctx.beginPath();
-  ctx.arc(x, y, 38, 0, Math.PI * 2);
+  ctx.arc(x, y, 42, 0, Math.PI * 2);
   ctx.fill();
 
   playSparkleSound();
@@ -171,22 +173,28 @@ function nextArt() {
   resetCanvas();
 }
 
+function initCanvasSize() {
+  requestAnimationFrame(() => {
+    resetCanvas();
+  });
+}
+
 onMounted(async () => {
   await nextTick();
-  resetCanvas();
-  window.addEventListener('resize', resetCanvas);
+  initCanvasSize();
+  window.addEventListener('resize', initCanvasSize);
   window.addEventListener('pointerup', onPointerUp);
 });
 
 onUnmounted(() => {
-  window.removeEventListener('resize', resetCanvas);
+  window.removeEventListener('resize', initCanvasSize);
   window.removeEventListener('pointerup', onPointerUp);
 });
 </script>
 
 <template>
   <div class="game-view drawing-bg">
-    <!-- 상단 프로그레스 바 & 이동 버튼 -->
+    <!-- 상단 컨트롤 헤더 -->
     <header class="top-bar">
       <div class="progress-container">
         <span class="progress-label">🎨 쓱싹쓱싹:</span>
@@ -197,9 +205,19 @@ onUnmounted(() => {
       <button class="nav-btn" @click="nextArt">다음 그림 ➡️</button>
     </header>
 
-    <!-- 캔버스 영역 -->
+    <!-- 도안 및 스크래치 영역 -->
     <main class="canvas-wrapper">
-      <div class="illustration-layer" v-html="ARTWORKS[currentIdx]"></div>
+      <!-- 배경 PNG 이미지 (항상 캔버스 밑에 렌더링) -->
+      <div class="illustration-layer">
+        <img
+          :src="ARTWORKS[currentIdx]"
+          alt="도안 일러스트"
+          class="artwork-img"
+          draggable="false"
+        />
+      </div>
+
+      <!-- 상단 스크래치 지우개 캔버스 -->
       <canvas
         ref="canvasRef"
         class="scratch-canvas"
@@ -207,7 +225,7 @@ onUnmounted(() => {
         @pointermove="onPointerMove"
       ></canvas>
 
-      <!-- 축하 팝업 오버레이 -->
+      <!-- 축하 팝업 -->
       <Transition name="fade">
         <div v-if="showCelebration" class="celebration">
           <div class="celebration-text">참 잘했어요! 🎉</div>
@@ -215,7 +233,7 @@ onUnmounted(() => {
       </Transition>
     </main>
 
-    <!-- 별가루 터치 파티클 -->
+    <!-- 별가루 파티클 -->
     <div
       v-for="sparkle in sparkles"
       :key="sparkle.id"
@@ -233,7 +251,10 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-.drawing-bg {
+.game-view.drawing-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100vw;
   height: 100vh;
   overflow: hidden;
@@ -242,16 +263,16 @@ onUnmounted(() => {
   flex-direction: column;
 }
 
-/* 상단 프로그레스 바 영역 */
 .top-bar {
   height: 70px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 0 20px;
-  background-color: rgba(255, 255, 255, 0.85);
+  background-color: rgba(255, 255, 255, 0.9);
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
   z-index: 10;
+  flex-shrink: 0;
 }
 
 .progress-container {
@@ -269,7 +290,7 @@ onUnmounted(() => {
 .progress-bar-bg {
   width: 170px;
   height: 22px;
-  background-color: #eee;
+  background-color: #dfe6e9;
   border-radius: 999px;
   overflow: hidden;
   border: 2px solid #ff7675;
@@ -300,7 +321,7 @@ onUnmounted(() => {
   box-shadow: 0 1px 0 #074b83;
 }
 
-/* 캔버스 래퍼 */
+/* 캔버스 & 이미지 래퍼 */
 .canvas-wrapper {
   position: relative;
   flex: 1;
@@ -308,6 +329,8 @@ onUnmounted(() => {
   max-width: 600px;
   margin: 0 auto;
   overflow: hidden;
+  /* 부드러운 일체감을 위해 라운드 및 드롭 섀도우 처리 */
+  border-radius: 28px;
 }
 
 .illustration-layer {
@@ -319,11 +342,19 @@ onUnmounted(() => {
   display: flex;
   justify-content: center;
   align-items: center;
+  /* 기존 흰색 배경을 제거하고 전체 배경과 이어지는 투명/은은한 파스텔 그라데이션 적용 */
+  background: linear-gradient(135deg, rgba(255, 234, 167, 0.6) 0%, rgba(250, 177, 160, 0.6) 100%);
 }
 
-.illustration-layer :deep(svg) {
-  width: 85%;
-  height: 85%;
+.artwork-img {
+  width: 88%;
+  height: 88%;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+  pointer-events: none;
+  /* 캐릭터가 배경에서 살짝 떠오르도록 부드러운 입체 그림자 */
+  filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.15));
 }
 
 .scratch-canvas {
@@ -377,7 +408,6 @@ onUnmounted(() => {
   opacity: 0;
 }
 
-/* 별가루 터치 이펙트 */
 .sparkle-pop {
   position: fixed;
   font-size: 24px;
@@ -389,21 +419,5 @@ onUnmounted(() => {
 @keyframes burst {
   0% { transform: translate(-50%, -50%) scale(0.4); opacity: 1; }
   100% { transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) scale(1.4); opacity: 0; }
-}
-
-@media (max-width: 480px) {
-  .top-bar {
-    padding: 0 12px;
-  }
-  .progress-bar-bg {
-    width: 110px;
-  }
-  .progress-label {
-    font-size: 16px;
-  }
-  .nav-btn {
-    padding: 6px 14px;
-    font-size: 15px;
-  }
 }
 </style>
