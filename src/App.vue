@@ -6,6 +6,7 @@ import FloatingSnb from './components/FloatingSnb.vue';
 import MagicDrawing from './components/games/MagicDrawing.vue';
 import EmojiPop from './components/games/EmojiPop.vue';
 import TraceDrawing from './components/games/TraceDrawing.vue';
+import AnimalPiano from './components/games/AnimalPiano.vue';
 
 const isLoading = ref(true);
 const currentScreen = ref('home');
@@ -23,10 +24,11 @@ function handleNavigate(target) {
 
 <template>
   <main id="app">
-    <LoadingScreen v-if="isLoading" /> <!-- inpregress 화면 -->
+    <LoadingScreen v-if="isLoading" />
 
     <template v-else> <!-- 화면 라우팅 -->
       <MainHome v-if="currentScreen === 'home'" />
+      <AnimalPiano v-else-if="currentScreen === 'animal-piano'" />
       <TraceDrawing v-else-if="currentScreen === 'trace-drawing'" />
       <MagicDrawing v-else-if="currentScreen === 'magic-drawing'" />
       <EmojiPop v-else-if="currentScreen === 'emoji-pop'" />
