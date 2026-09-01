@@ -197,11 +197,12 @@ function triggerInteraction(char, event) {
 </template>
 
 <style scoped>
+/* 기본 가로 방향 배경 (데스크탑, 태블릿 가로, 모바일 가로) */
 .home-screen {
   position: relative;
   width: 100vw;
   height: 100vh;
-  background-image: url('/public/images/main.jpg');
+  background-image: url('/images/main_horizon.png'); /* 또는 '/main_horizon.png' */
   background-size: cover;
   background-position: center bottom;
   background-repeat: no-repeat;
@@ -412,4 +413,13 @@ function triggerInteraction(char, event) {
     font-size: 14px;
   }
 }
+
+/* 세로 모드 대응 (모바일 세로, 태블릿 세로) */
+@media (orientation: portrait) {
+  .home-screen {
+    background-image: url('/images/main_vertical.png'); /* 또는 '/main_vertical.png' */
+    background-position: center center;
+  }
+}
+
 </style>

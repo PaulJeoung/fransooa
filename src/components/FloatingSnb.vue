@@ -36,7 +36,7 @@ function selectMenu(target) {
         <!-- 4. 매직 컬러링 -->
         <button class="snb-item" @click="selectMenu('magic-drawing')">
           <span class="menu-icon">🎨</span>
-          <span class="menu-label">매직 손가락 컬러링</span>
+          <span class="menu-label">쓱쓱 싹싹 매직 손가락</span>
         </button>
 
         <!-- 5. 이모티콘 팡팡 -->
@@ -47,7 +47,7 @@ function selectMenu(target) {
 
         <button class="snb-item" @click="selectMenu('animal-puzzle')">
           <span class="menu-icon">🧩</span>
-          <span class="menu-label">동물 실루엣 퍼즐</span>
+          <span class="menu-label">프랑수아를 맞춰요</span>
         </button>
       </div>
     </Transition>
