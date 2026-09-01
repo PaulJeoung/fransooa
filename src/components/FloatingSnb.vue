@@ -44,6 +44,11 @@ function selectMenu(target) {
           <span class="menu-icon">🎈</span>
           <span class="menu-label">이모티콘 팡팡</span>
         </button>
+
+        <button class="snb-item" @click="selectMenu('animal-puzzle')">
+          <span class="menu-icon">🧩</span>
+          <span class="menu-label">동물 실루엣 퍼즐</span>
+        </button>
       </div>
     </Transition>
 

@@ -10,7 +10,7 @@ const PIANO_KEYS = [
   { id: 'g4', note: '솔', name: '악어', pitch: 392.00, color: '#00CEC9', activeColor: '#01A3A4', icon: '🐊', image: '/images/piano/05_alligator.png', soundLabel: '크왕!' },
   { id: 'a4', note: '라', name: '사자', pitch: 440.00, color: '#0984E3', activeColor: '#2F3542', icon: '🦁', image: '/images/piano/06_lion.png', soundLabel: '어흥!' },
   { id: 'b4', note: '시', name: '원숭이', pitch: 493.88, color: '#6C5CE7', activeColor: '#575FCF', icon: '🐵', image: '/images/piano/07_monkey.png', soundLabel: '우끼!' },
-  { id: 'c5', note: '높은 도', name: '고양이', pitch: 523.25, color: '#FD79A8', activeColor: '#E84393', icon: '🐱', image: '/images/piano/08_cat.png', soundLabel: '야옹!' }
+  { id: 'c5', note: '도', name: '고양이', pitch: 523.25, color: '#FD79A8', activeColor: '#E84393', icon: '🐱', image: '/images/piano/08_cat.png', soundLabel: '야옹!' }
 ];
 
 const activeKeyId = ref(null);
@@ -22,15 +22,25 @@ let audioCtx = null;
 let animationFrameId = null;
 let bubbleSpawnTimer = null;
 
-// 1. Web Audio API (피아노/실로폰 사운드)
-function playTone(freq) {
+// AudioContext 초기화 및 브라우저 잠금 해제 보장
+async function initAudioContext() {
   try {
     if (!audioCtx) {
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     }
     if (audioCtx.state === 'suspended') {
-      audioCtx.resume();
+      await audioCtx.resume();
     }
+  } catch (e) {
+    console.error('AudioContext 초기화 오류:', e);
+  }
+}
+
+// 1. Web Audio API (피아노/실로폰 사운드)
+async function playTone(freq) {
+  try {
+    await initAudioContext();
+    if (!audioCtx) return;
 
     const now = audioCtx.currentTime;
     const osc1 = audioCtx.createOscillator();
@@ -55,13 +65,17 @@ function playTone(freq) {
     osc2.start(now);
     osc1.stop(now + 0.8);
     osc2.stop(now + 0.4);
-  } catch (e) {}
+  } catch (e) {
+    console.error('Tone 재생 에러:', e);
+  }
 }
 
 // 2. 비누방울 뿅! 효과음
-function playPopSound() {
+async function playPopSound() {
   try {
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    await initAudioContext();
+    if (!audioCtx) return;
+
     const now = audioCtx.currentTime;
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
@@ -78,10 +92,12 @@ function playPopSound() {
 
     osc.start(now);
     osc.stop(now + 0.08);
-  } catch (e) {}
+  } catch (e) {
+    console.error('Pop 재생 에러:', e);
+  }
 }
 
-// 3. 비누방울 생성 (크기를 74px~92px로 키움)
+// 3. 비누방울 생성
 function spawnBubble() {
   const randomChar = PIANO_KEYS[Math.floor(Math.random() * PIANO_KEYS.length)];
   const bubble = {
@@ -125,7 +141,7 @@ function popBubble(bubble, customX = null, customY = null) {
   const px = customX ?? (window.innerWidth * (bubble.x / 100));
   const py = customY ?? (window.innerHeight * (bubble.y / 100));
 
-  const icons = ['✨', '⭐', '🫧', '💖', '🎵'];
+  const icons = ['✨', '⭐', '💖', '🎵'];
   const newSparkles = Array.from({ length: 6 }).map(() => ({
     id: Math.random(),
     icon: icons[Math.floor(Math.random() * icons.length)],
@@ -193,15 +209,28 @@ function onImageError(e) {
   }
 }
 
+// 첫 사용자 인터랙션 시 오디오 사전 잠금 해제
+const unlockAudio = () => {
+  initAudioContext();
+  window.removeEventListener('pointerdown', unlockAudio);
+  window.removeEventListener('touchstart', unlockAudio);
+};
+
 onMounted(() => {
   animationFrameId = requestAnimationFrame(updateBubbles);
   spawnBubble();
   bubbleSpawnTimer = setInterval(spawnBubble, 1100);
+
+  // 화면 어디든 첫 터치/클릭 발생 시 사전에 AudioContext를 깨워 둠
+  window.addEventListener('pointerdown', unlockAudio, { once: true });
+  window.addEventListener('touchstart', unlockAudio, { once: true });
 });
 
 onUnmounted(() => {
   if (animationFrameId) cancelAnimationFrame(animationFrameId);
   if (bubbleSpawnTimer) clearInterval(bubbleSpawnTimer);
+  window.removeEventListener('pointerdown', unlockAudio);
+  window.removeEventListener('touchstart', unlockAudio);
 });
 </script>
 
@@ -240,7 +269,7 @@ onUnmounted(() => {
         }"
         @pointerdown="handleBubbleClick(b, $event)"
       >
-        <!-- 비누방울 내부 원형 캐릭터 컨테이너 (네모 모서리 완전 차단) -->
+        <!-- 비누방울 내부 원형 캐릭터 컨테이너 -->
         <div class="bubble-circle-core">
           <img
             :src="b.char.image"
@@ -269,7 +298,7 @@ onUnmounted(() => {
           :style="{ '--key-color': key.color, '--key-active-color': key.activeColor }"
           @pointerdown="handleKeyPress(key, $event)"
         >
-          <!-- 건반 위 캐릭터 아바타 (동그란 원형 마운트) -->
+          <!-- 건반 위 캐릭터 아바타 -->
           <div class="animal-avatar-box">
             <div class="animal-avatar">
               <img
@@ -419,7 +448,7 @@ onUnmounted(() => {
   z-index: 5;
 }
 
-/* 🫧 리뉴얼된 원형 비누방울 외형 */
+/* 리뉴얼된 원형 비누방울 외형 */
 .falling-bubble {
   position: absolute;
   transform: translate(-50%, -50%);
@@ -433,7 +462,7 @@ onUnmounted(() => {
   transition: transform 0.15s ease-out, opacity 0.15s ease-out;
 }
 
-/* 1. 내부 원형 이미지 코어 (네모난 배경을 완벽하게 동그랗게 마스킹) */
+/* 1. 내부 원형 이미지 코어 */
 .bubble-circle-core {
   width: 86%;
   height: 86%;
