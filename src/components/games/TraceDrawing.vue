@@ -10,7 +10,7 @@ const isCelebrated = ref(false);
 const sparkles = ref([]);
 const confettiList = ref([]);
 
-// 크레파스 색상 팔레트
+// 3,4세 유아 맞춤 파스텔 & 비비드 크레용 팔레트
 const PALETTE = ['#FF4757', '#FF7F50', '#FFA502', '#2ED573', '#1E90FF', '#9B59B6', '#FF69B4'];
 const currentColor = ref(PALETTE[0]);
 
@@ -19,14 +19,14 @@ let isDrawing = false;
 let audioCtx = null;
 let lastSoundTime = 0;
 
-// 글자 영역 마스크 정보 (좌측/우측 분할 관리)
+// 좌/우 분할 마스크 데이터
 let letterMaskData = {
   leftTotal: 0,
   rightTotal: 0,
   total: 0
 };
 
-// 1. Web Audio API 사운드 시스템
+// Web Audio API 사운드
 function initAudioContext() {
   try {
     if (!audioCtx) {
@@ -40,7 +40,7 @@ function initAudioContext() {
 
 function playPopTone() {
   const now = Date.now();
-  if (now - lastSoundTime < 70) return;
+  if (now - lastSoundTime < 65) return;
   lastSoundTime = now;
 
   try {
@@ -48,17 +48,16 @@ function playPopTone() {
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
 
-    const notes = [440, 493.88, 523.25, 587.33, 659.25, 698.46, 783.99, 880];
+    const notes = [523.25, 587.33, 659.25, 698.46, 783.99, 880, 1046.50];
     const note = notes[Math.floor(Math.random() * notes.length)];
 
     osc.type = 'sine';
     osc.frequency.setValueAtTime(note, audioCtx.currentTime);
-    gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+    gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
 
     osc.connect(gain);
     gain.connect(audioCtx.destination);
-
     osc.start();
     osc.stop(audioCtx.currentTime + 0.1);
   } catch (e) {}
@@ -67,29 +66,32 @@ function playPopTone() {
 function playSuccessFanfare() {
   try {
     initAudioContext();
-    const notes = [523.25, 659.25, 783.99, 1046.50, 1318.51];
-    notes.forEach((freq, idx) => {
+    const melody = [523.25, 659.25, 783.99, 1046.50, 1318.51];
+    melody.forEach((freq, idx) => {
       setTimeout(() => {
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
         osc.type = 'triangle';
         osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
+        gain.gain.setValueAtTime(0.22, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
         osc.connect(gain);
         gain.connect(audioCtx.destination);
         osc.start();
-        osc.stop(audioCtx.currentTime + 0.25);
-      }, idx * 80);
+        osc.stop(audioCtx.currentTime + 0.3);
+      }, idx * 75);
     });
   } catch (e) {}
 }
 
-// 2. 캔버스 초기화 및 구역별 글자 픽셀 사전 등록
+// 캔버스 초기화 및 단일 화이트 베이스 렌더링 (겹침 버그 제거)
 function renderLetterBase() {
   const canvas = canvasRef.value;
   if (!canvas) return;
+
   const rect = canvas.getBoundingClientRect();
+  if (rect.width === 0 || rect.height === 0) return;
+
   canvas.width = rect.width;
   canvas.height = rect.height;
 
@@ -97,30 +99,34 @@ function renderLetterBase() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   const char = currentItem.value.char;
-  const fontSize = Math.min(canvas.width, canvas.height) * 0.62;
+  // 글자 수에 따른 폰트 크기 동적 스케일링
+  const isMultiChar = char.length > 1;
+  const fontSize = Math.min(canvas.width, canvas.height) * (isMultiChar ? 0.52 : 0.68);
   const cx = canvas.width / 2;
-  const cy = canvas.height / 2 + fontSize * 0.33;
+  const cy = canvas.height / 2 + fontSize * 0.34;
 
   ctx.textAlign = 'center';
-  ctx.font = `900 ${fontSize}px "NanumSquareRound", "Comic Sans MS", "Apple SD Gothic Neo", sans-serif`;
+  ctx.textBaseline = 'alphabetic';
+  ctx.font = `900 ${fontSize}px "NanumSquareRound", "Apple SD Gothic Neo", "Comic Sans MS", sans-serif`;
 
-  // 3D 입체 그림자 및 기본 틀 렌더링
-  ctx.fillStyle = '#b2bec3';
-  ctx.fillText(char, cx + 8, cy + 10);
-  ctx.fillStyle = '#dfe6e9';
-  ctx.fillText(char, cx + 4, cy + 5);
+  // 1. 부드러운 입체 바닥 그림자 (일체형)
+  ctx.fillStyle = '#e2e8f0';
+  ctx.fillText(char, cx + 4, cy + 6);
 
+  // 2. 메인 글자 바탕 (완전한 화이트로 칠하여 획 겹침 선 제거)
   ctx.fillStyle = '#ffffff';
   ctx.fillText(char, cx, cy);
 
-  ctx.lineWidth = 14;
-  ctx.strokeStyle = '#636e72';
+  // 3. 은은하고 둥근 외곽 경계선 (동일 계열 색상)
+  ctx.lineWidth = 12;
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = '#ffffff';
   ctx.strokeText(char, cx, cy);
 
-  // 좌/우 영역별 목표 픽셀 수 카운팅
+  // 좌/우 분할 목표 픽셀 카운트 등록
   const midX = canvas.width / 2;
-  const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  const data = imgData.data;
+  const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
 
   let leftCount = 0;
   let rightCount = 0;
@@ -128,15 +134,11 @@ function renderLetterBase() {
   for (let y = 0; y < canvas.height; y += 4) {
     for (let x = 0; x < canvas.width; x += 4) {
       const idx = (y * canvas.width + x) * 4;
-      const a = data[idx + 3];
+      const alpha = imgData[idx + 3];
 
-      // 글자 형태가 존재하는 영역 카운트
-      if (a > 50) {
-        if (x < midX) {
-          leftCount++;
-        } else {
-          rightCount++;
-        }
+      if (alpha > 40) {
+        if (x < midX) leftCount++;
+        else rightCount++;
       }
     }
   }
@@ -151,13 +153,12 @@ function renderLetterBase() {
   isCelebrated.value = false;
 }
 
-// 3. 균형 검증 기반 정확도 판정 함수
+// 칠하기 진행도 검증 (유아 보정 및 좌우 밸런스 검사)
 function evaluateProgress() {
   if (!ctx || !canvasRef.value || letterMaskData.total === 0) return;
   const canvas = canvasRef.value;
   const midX = canvas.width / 2;
-  const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  const data = imgData.data;
+  const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
 
   let leftPainted = 0;
   let rightPainted = 0;
@@ -165,58 +166,55 @@ function evaluateProgress() {
   for (let y = 0; y < canvas.height; y += 4) {
     for (let x = 0; x < canvas.width; x += 4) {
       const idx = (y * canvas.width + x) * 4;
-      const r = data[idx];
-      const g = data[idx + 1];
-      const b = data[idx + 2];
-      const a = data[idx + 3];
+      const r = imgData[idx];
+      const g = imgData[idx + 1];
+      const b = imgData[idx + 2];
+      const a = imgData[idx + 3];
 
-      // 글자 영역 내부(a > 50)이면서, 초기 흰색/회색 계열이 아닌 유색 물감인 경우
-      if (a > 50) {
-        const isGrayscale = Math.abs(r - g) < 15 && Math.abs(g - b) < 15;
-        const isWhiteOrGray = isGrayscale && r > 160;
+      if (a > 40) {
+        const isGrayscale = Math.abs(r - g) < 18 && Math.abs(g - b) < 18;
+        const isWhiteOrBase = isGrayscale && r > 210;
 
-        if (!isWhiteOrGray) {
-          if (x < midX) {
-            leftPainted++;
-          } else {
-            rightPainted++;
-          }
+        if (!isWhiteOrBase) {
+          if (x < midX) leftPainted++;
+          else rightPainted++;
         }
       }
     }
   }
 
-  // 좌/우 영역 각각의 달성률 (0.0 ~ 1.0)
   const leftRatio = leftPainted / letterMaskData.leftTotal;
   const rightRatio = rightPainted / letterMaskData.rightTotal;
   const totalRatio = (leftPainted + rightPainted) / letterMaskData.total;
 
-  // 전체 진행률 UI 표시 (목표치 60% 기준 환산)
-  const rawProgress = Math.min(100, Math.round((totalRatio / 0.8) * 100));
-  progressPercent.value = rawProgress;
+  // 1. 프로그레스 바 게이지 환산 (90%를 칠했을 때 100% 도달)
+  const adjustedProgress = Math.min(100, Math.round((totalRatio / 0.9) * 100)); // 👈 0.6에서 0.9로 변경
+  progressPercent.value = adjustedProgress;
 
-  const isBalanced = leftRatio >= 0.48 && rightRatio >= 0.48;
-  const isOverallComplete = totalRatio >= 0.88;
+  // 2. 판정 기준 조건
+  // - 좌/우 균형: 한쪽에만 쏠리지 않도록 양쪽 모두 최소 60~70% 이상 채워졌는지 검증
+  // - 전체 일치율: 전체 면적의 90%(0.90) 이상 채워졌을 때 통과
+  const isBalanced = leftRatio >= 0.65 && rightRatio >= 0.65; // 👈 0.38에서 0.65로 상향
+  const isComplete = totalRatio >= 0.90;                     // 👈 0.58에서 0.90으로 상향
 
-  if (isOverallComplete && isBalanced && !isCelebrated.value) {
+  if (isComplete && isBalanced && !isCelebrated.value) {
     progressPercent.value = 100;
     triggerCelebration();
   }
 }
 
-// 4. 드로잉 및 파티클 처리
+// 드로잉 인터랙션 (손가락 두께 반영 브러시)
 function draw(clientX, clientY) {
   if (!ctx || !canvasRef.value || isCelebrated.value) return;
   const rect = canvasRef.value.getBoundingClientRect();
   const x = clientX - rect.left;
   const y = clientY - rect.top;
 
-  // 글자 내부에서만 칠해지도록 합성
   ctx.save();
   ctx.globalCompositeOperation = 'source-atop';
   ctx.fillStyle = currentColor.value;
   ctx.beginPath();
-  ctx.arc(x, y, 32, 0, Math.PI * 2);
+  ctx.arc(x, y, 36, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
 
@@ -226,13 +224,14 @@ function draw(clientX, clientY) {
 
 function spawnSparkle(x, y) {
   const id = Math.random();
+  const icons = ['✨', '⭐', '💖', '🍭', '🌸'];
   sparkles.value.push({
     id,
-    icon: ['✨', '⭐', '💖', '🍭'][Math.floor(Math.random() * 4)],
+    icon: icons[Math.floor(Math.random() * icons.length)],
     x,
     y,
-    tx: `${(Math.random() - 0.5) * 70}px`,
-    ty: `${(Math.random() - 0.5) * 70}px`
+    tx: `${(Math.random() - 0.5) * 80}px`,
+    ty: `${(Math.random() - 0.5) * 80}px`
   });
   setTimeout(() => {
     sparkles.value = sparkles.value.filter(s => s.id !== id);
@@ -243,13 +242,12 @@ function triggerCelebration() {
   isCelebrated.value = true;
   playSuccessFanfare();
 
-  // 색종이 폭죽 파티클
-  const colors = ['#ff4757', '#ffa502', '#2ed573', '#1e90ff', '#e84393', '#feca57'];
-  confettiList.value = Array.from({ length: 30 }).map(() => ({
+  const colors = ['#ff4757', '#ffa502', '#2ed573', '#1e90ff', '#e84393', '#feca57', '#9b59b6'];
+  confettiList.value = Array.from({ length: 35 }).map(() => ({
     id: Math.random(),
     color: colors[Math.floor(Math.random() * colors.length)],
     x: Math.random() * window.innerWidth,
-    y: Math.random() * window.innerHeight * 0.4,
+    y: Math.random() * (window.innerHeight * 0.4),
     size: Math.random() * 12 + 8
   }));
 
@@ -259,7 +257,6 @@ function triggerCelebration() {
   }, 2200);
 }
 
-// 5. 다음 문제 출제 및 카테고리 전환
 function nextItem() {
   let pool = TRACE_ITEMS;
   if (selectedCategory.value !== TRACE_CATEGORIES.ALL) {
@@ -278,7 +275,6 @@ function selectCategory(cat) {
   nextItem();
 }
 
-// 6. 포인터 이벤트 리스너
 function handlePointerDown(e) {
   isDrawing = true;
   draw(e.clientX, e.clientY);
@@ -309,73 +305,90 @@ onUnmounted(() => {
 
 <template>
   <div class="trace-game-view">
-    <!-- 상단 탭 및 게이지 바 -->
+    <!-- 상단 탭 및 게이지 헤더 -->
     <header class="game-header">
       <div class="category-tabs">
         <button
           class="cat-btn"
           :class="{ active: selectedCategory === TRACE_CATEGORIES.ALL }"
           @click="selectCategory(TRACE_CATEGORIES.ALL)"
-        >
-          🎲
-        </button>
+        >🎲 섞어서</button>
         <button
           class="cat-btn"
           :class="{ active: selectedCategory === TRACE_CATEGORIES.CONSONANT }"
           @click="selectCategory(TRACE_CATEGORIES.CONSONANT)"
-        >
-          자음
-        </button>
+        >ㄱ 자음</button>
         <button
           class="cat-btn"
           :class="{ active: selectedCategory === TRACE_CATEGORIES.VOWEL }"
           @click="selectCategory(TRACE_CATEGORIES.VOWEL)"
-        >
-          모음
-        </button>
+        >ㅏ 모음</button>
         <button
           class="cat-btn"
           :class="{ active: selectedCategory === TRACE_CATEGORIES.NUMBER }"
           @click="selectCategory(TRACE_CATEGORIES.NUMBER)"
-        >
-          숫자
-        </button>
+        >123 숫자</button>
+        <button
+          class="cat-btn"
+          :class="{ active: selectedCategory === TRACE_CATEGORIES.ALPHABET }"
+          @click="selectCategory(TRACE_CATEGORIES.ALPHABET)"
+        >ABC 영어</button>
       </div>
 
       <div class="status-bar">
         <div class="progress-bar-bg">
           <div class="progress-fill" :style="{ width: progressPercent + '%' }"></div>
         </div>
-        <button class="skip-btn" @click="nextItem">다음</button>
+        <button class="skip-btn" @click="nextItem">다음 ➡️</button>
       </div>
     </header>
 
-    <!-- 글자 안내 힌트 카드 -->
-    <div class="word-card">
-      <span class="word-text">{{ currentItem.word }}</span>
-    </div>
-
-    <!-- 캔버스 인터랙션 영역 -->
-    <main class="canvas-box">
-      <canvas
-        ref="canvasRef"
-        class="trace-canvas"
-        @pointerdown="handlePointerDown"
-        @pointermove="handlePointerMove"
-      ></canvas>
-
-      <!-- 완성 축하 팝업 -->
-      <Transition name="bounce">
-        <div v-if="isCelebrated" class="celebration-overlay">
-          <div class="celebration-badge">
-            <span class="big-emoji">🎉</span>
-            <span class="cheer-text">참 잘했어요!</span>
-          </div>
+    <!-- [상단 1/3] 대형 연상 단어 및 일러스트 카드 -->
+    <section class="word-showcase-section">
+      <div class="big-word-card" :style="{ '--theme-color': currentItem.color }">
+        <!-- 🖼️ 기존 {{ currentItem.emoji }} 대신 이미지 태그 적용 -->
+        <div class="image-box">
+          <img
+            :src="currentItem.image"
+            :alt="currentItem.word"
+            class="word-illustration-img"
+            draggable="false"
+          />
         </div>
-      </Transition>
+
+        <div class="info-box">
+          <h2 class="main-word">{{ currentItem.word }}</h2>
+          <p class="word-tip">{{ currentItem.tip }}</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- [하단 2/3] 대형 트레이싱 캔버스 영역 -->
+    <main class="canvas-section">
+      <div class="canvas-wrapper">
+        <canvas
+          ref="canvasRef"
+          class="trace-canvas"
+          @pointerdown="handlePointerDown"
+          @pointermove="handlePointerMove"
+        ></canvas>
+
+        <!-- 완성 축하 팝업 -->
+        <Transition name="bounce">
+          <div v-if="isCelebrated" class="celebration-overlay">
+            <div class="celebration-badge">
+              <span class="big-emoji">🎉</span>
+              <div class="cheer-wrap">
+                <span class="cheer-text">참 잘했어요!</span>
+                <span class="cheer-sub">정말 멋지게 따라 썼어요! ⭐</span>
+              </div>
+            </div>
+          </div>
+        </Transition>
+      </div>
     </main>
 
-    <!-- 크레파스 색상 선택 바 -->
+    <!-- 하단 크레용 팔레트 -->
     <footer class="crayon-palette">
       <button
         v-for="color in PALETTE"
@@ -387,7 +400,7 @@ onUnmounted(() => {
       ></button>
     </footer>
 
-    <!-- 별가루 파티클 -->
+    <!-- 인터랙션 파티클 -->
     <div
       v-for="sparkle in sparkles"
       :key="sparkle.id"
@@ -402,7 +415,7 @@ onUnmounted(() => {
       {{ sparkle.icon }}
     </div>
 
-    <!-- 컨페티 폭죽 파티클 -->
+    <!-- 완성 축하 컨페티 -->
     <div
       v-for="confetti in confettiList"
       :key="confetti.id"
@@ -422,7 +435,7 @@ onUnmounted(() => {
 .trace-game-view {
   width: 100vw;
   height: 100vh;
-  background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%);
+  background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -431,22 +444,25 @@ onUnmounted(() => {
   touch-action: none;
 }
 
-/* 상단 카테고리 & 게이지 */
+/* 1. 상단 네비게이션 헤더 */
 .game-header {
   width: 100%;
-  padding: 12px 18px;
+  padding: 10px 16px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: rgba(255, 255, 255, 0.88);
-  backdrop-filter: blur(6px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  z-index: 20;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+  z-index: 30;
+  flex-shrink: 0;
 }
 
 .category-tabs {
   display: flex;
   gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 2px;
 }
 
 .cat-btn {
@@ -454,10 +470,12 @@ onUnmounted(() => {
   border: 2px solid #dfe6e9;
   border-radius: 999px;
   padding: 6px 12px;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 800;
   color: #636e72;
   cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
 }
 
 .cat-btn.active {
@@ -470,12 +488,12 @@ onUnmounted(() => {
 .status-bar {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .progress-bar-bg {
-  width: 130px;
-  height: 20px;
+  width: 110px;
+  height: 18px;
   background-color: #dfe6e9;
   border-radius: 999px;
   overflow: hidden;
@@ -493,66 +511,145 @@ onUnmounted(() => {
   background: #0984e3;
   color: #fff;
   border: 2px solid #ffffff;
-  padding: 6px 14px;
-  font-size: 14px;
+  padding: 6px 12px;
+  font-size: 13px;
   font-weight: 800;
   border-radius: 999px;
   box-shadow: 0 3px 0 #074b83;
   cursor: pointer;
+  white-space: nowrap;
 }
 
-/* 글자 힌트 */
-.word-card {
-  margin-top: 10px;
-  background: #ffffff;
-  border: 3px solid #fdcb6e;
-  padding: 6px 20px;
-  border-radius: 20px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-}
-
-.word-text {
-  font-size: 20px;
-  font-weight: 900;
-  color: #2d3436;
-}
-
-/* 캔버스 */
-.canvas-box {
-  position: relative;
+/* 2. [상단 1/3] 대형 연상 카드 */
+.word-showcase-section {
   flex: 1;
   width: 100%;
-  max-width: 480px;
-  margin: 10px auto;
+  max-width: 500px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 8px 16px;
+  max-height: 28vh;
+}
+
+.big-word-card {
+  width: 100%;
+  height: 90%;
+  background: rgba(255, 255, 255, 0.94);
+  border: 4px solid var(--theme-color);
+  border-radius: 28px;
+  /* box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12), 0 4px 0 var(--theme-color); */
+  display: flex;
+  align-items: center;
+  justify-content: center; /* 카드 정중앙 정렬 */
+  padding: 10px 20px;
+  gap: 18px;
+}
+
+/* 🖼️ 이미지 컨테이너 (작아지지 않게 고정/비율 크기 확보) */
+.image-box {
+  width: clamp(68px, 16vw, 92px);
+  height: clamp(68px, 16vw, 92px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0; /* 글자가 길어져도 이미지가 찌그러지지 않음 */
+  animation: floatImage 2.2s ease-in-out infinite alternate;
+}
+
+/* 실제 이미지 스타일 */
+.word-illustration-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain; /* 비율 유지하며 꽉 채움 */
+  /* filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.15)); */
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* 둥둥 떠다니는 애니메이션 효과 */
+@keyframes floatImage {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-6px) scale(1.06); }
+}
+
+.info-box {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.main-word {
+  margin: 0;
+  font-size: clamp(22px, 5vw, 32px);
+  font-weight: 900;
+  color: var(--theme-color);
+  letter-spacing: -0.5px;
+}
+
+.word-tip {
+  margin: 4px 0 0 0;
+  font-size: clamp(13px, 3vw, 16px);
+  font-weight: 800;
+  color: #636e72;
+}
+
+/* 모바일 화면 대응 */
+@media (max-width: 480px) {
+  .word-showcase-section { 
+    max-height: 25vh; 
+  }
+  .big-word-card {
+    padding: 8px 14px;
+    gap: 12px;
+  }
+}
+
+/* 3. [하단 2/3] 대형 트레이싱 캔버스 */
+.canvas-section {
+  flex: 2;
+  width: 100%;
+  max-width: 500px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 6px 16px 10px 16px;
+}
+
+.canvas-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
   display: flex;
   justify-content: center;
   align-items: center;
 }
 
 .trace-canvas {
-  width: 90%;
-  height: 90%;
-  background: #ffffff;
-  border-radius: 36px;
+  width: 100%;
+  height: 100%;
+  background: #f8fafc;
+  border-radius: 32px;
   border: 6px dashed #ff9ff3;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15), inset 0 0 15px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12), inset 0 0 20px rgba(0, 0, 0, 0.04);
   cursor: pointer;
 }
 
-/* 크레파스 바 */
+/* 4. 하단 크레용 바 */
 .crayon-palette {
-  height: 65px;
+  height: 60px;
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 12px;
-  padding-bottom: 8px;
+  gap: 10px;
+  padding-bottom: 6px;
   z-index: 20;
+  flex-shrink: 0;
 }
 
 .crayon-btn {
-  width: 38px;
-  height: 38px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   border: 3px solid #ffffff;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
@@ -561,11 +658,11 @@ onUnmounted(() => {
 }
 
 .crayon-btn.selected {
-  transform: translateY(-8px) scale(1.2);
+  transform: translateY(-8px) scale(1.22);
   border-color: #2d3436;
 }
 
-/* 완성 축하 */
+/* 완성 축하 팝업 */
 .celebration-overlay {
   position: absolute;
   top: 0;
@@ -576,27 +673,39 @@ onUnmounted(() => {
   justify-content: center;
   align-items: center;
   pointer-events: none;
+  z-index: 40;
 }
 
 .celebration-badge {
   background: #ffffff;
-  border: 6px solid #fdcb6e;
-  padding: 18px 30px;
-  border-radius: 40px;
+  border: 5px solid #fdcb6e;
+  padding: 16px 24px;
+  border-radius: 36px;
   display: flex;
   align-items: center;
-  gap: 12px;
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+  gap: 14px;
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.22);
 }
 
 .big-emoji {
-  font-size: 38px;
+  font-size: 40px;
+}
+
+.cheer-wrap {
+  display: flex;
+  flex-direction: column;
 }
 
 .cheer-text {
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 900;
   color: #ff4757;
+}
+
+.cheer-sub {
+  font-size: 13px;
+  font-weight: 800;
+  color: #2d3436;
 }
 
 /* 파티클 & 애니메이션 */
@@ -623,7 +732,7 @@ onUnmounted(() => {
 
 @keyframes fall {
   0% { transform: translateY(0) rotate(0deg); opacity: 1; }
-  100% { transform: translateY(350px) rotate(720deg); opacity: 0; }
+  100% { transform: translateY(380px) rotate(720deg); opacity: 0; }
 }
 
 .bounce-enter-active {
@@ -642,8 +751,9 @@ onUnmounted(() => {
 }
 
 @media (max-width: 480px) {
-  .cat-btn { padding: 4px 8px; font-size: 12px; }
-  .progress-bar-bg { width: 90px; }
-  .crayon-btn { width: 32px; height: 32px; }
+  .cat-btn { padding: 4px 8px; font-size: 11px; }
+  .progress-bar-bg { width: 80px; }
+  .crayon-btn { width: 30px; height: 30px; }
+  .word-showcase-section { max-height: 25vh; }
 }
 </style>

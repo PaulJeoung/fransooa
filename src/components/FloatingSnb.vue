@@ -55,7 +55,7 @@ function selectMenu(target) {
       @click="isOpen = !isOpen"
     >
       <span v-if="isOpen" class="btn-symbol close-symbol">✕</span>
-      <span v-else class="btn-symbol menu-symbol">☰</span>
+      <span v-else class="btn-symbol menu-symbol" style="top: 2px;">☰</span>
     </button>
   </nav>
 </template>

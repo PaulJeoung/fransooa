@@ -3,7 +3,8 @@ import { ref, onMounted, onUnmounted, nextTick } from 'vue';
 import { ARTWORKS } from '../../assets/artworks.js';
 
 const canvasRef = ref(null);
-const currentIdx = ref(0);
+const currentArts = ref([]);
+const isMobile = ref(false);
 const progressWidth = ref(0);
 const showCelebration = ref(false);
 const sparkles = ref([]);
@@ -12,6 +13,18 @@ let ctx = null;
 let isDrawing = false;
 let audioCtx = null;
 let lastSoundTime = 0;
+
+// 화면 크기 체크 (모바일 세로/가로 판별)
+function checkMobile() {
+  isMobile.value = window.innerWidth <= 600;
+}
+
+// 중복 없이 랜덤 이미지 선택 (모바일: 2장, 데스크톱/태블릿: 1장)
+function pickRandomArtworks() {
+  const count = isMobile.value ? 2 : 1;
+  const shuffled = [...ARTWORKS].sort(() => Math.random() - 0.5);
+  currentArts.value = shuffled.slice(0, count);
+}
 
 // 실로폰 사운드
 function playSparkleSound() {
@@ -96,8 +109,9 @@ function resetCanvas() {
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   // 중앙 안내 문구
+  const fontSize = Math.max(16, Math.min(22, Math.floor(canvas.width * 0.05)));
   ctx.fillStyle = '#636e72';
-  ctx.font = 'bold 22px sans-serif';
+  ctx.font = `bold ${fontSize}px sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText('✨ 손가락으로 쓱쓱 문질러봐요! ✨', canvas.width / 2, canvas.height / 2);
@@ -106,7 +120,7 @@ function resetCanvas() {
   showCelebration.value = false;
 }
 
-// 영역 계산
+// 영역 계산 및 통과 처리
 function calculateClearedArea() {
   if (!ctx || !canvasRef.value) return;
   const canvas = canvasRef.value;
@@ -123,7 +137,7 @@ function calculateClearedArea() {
   }
 
   const ratio = transparentPixels / totalPixels;
-  const percentage = Math.min(100, Math.round(ratio * 130));
+  const percentage = Math.min(100, Math.round(ratio * 170));
   progressWidth.value = percentage;
 
   if (percentage >= 100 && !showCelebration.value) {
@@ -135,7 +149,7 @@ function calculateClearedArea() {
   }
 }
 
-// 스크래치 지우개 동작
+// 스크래치 동작
 function scratch(clientX, clientY) {
   if (!ctx || !canvasRef.value) return;
   const rect = canvasRef.value.getBoundingClientRect();
@@ -144,7 +158,7 @@ function scratch(clientX, clientY) {
 
   ctx.globalCompositeOperation = 'destination-out';
   ctx.beginPath();
-  ctx.arc(x, y, 42, 0, Math.PI * 2);
+  ctx.arc(x, y, 46, 0, Math.PI * 2);
   ctx.fill();
 
   playSparkleSound();
@@ -168,26 +182,36 @@ function onPointerUp() {
   }
 }
 
+// 다음 랜덤 그림
 function nextArt() {
-  currentIdx.value = (currentIdx.value + 1) % ARTWORKS.length;
+  pickRandomArtworks();
   resetCanvas();
 }
 
-function initCanvasSize() {
+function handleResize() {
+  const prevMobile = isMobile.value;
+  checkMobile();
+  if (prevMobile !== isMobile.value) {
+    pickRandomArtworks();
+  }
   requestAnimationFrame(() => {
     resetCanvas();
   });
 }
 
 onMounted(async () => {
+  checkMobile();
+  pickRandomArtworks();
   await nextTick();
-  initCanvasSize();
-  window.addEventListener('resize', initCanvasSize);
+  requestAnimationFrame(() => {
+    resetCanvas();
+  });
+  window.addEventListener('resize', handleResize);
   window.addEventListener('pointerup', onPointerUp);
 });
 
 onUnmounted(() => {
-  window.removeEventListener('resize', initCanvasSize);
+  window.removeEventListener('resize', handleResize);
   window.removeEventListener('pointerup', onPointerUp);
 });
 </script>
@@ -197,24 +221,30 @@ onUnmounted(() => {
     <!-- 상단 컨트롤 헤더 -->
     <header class="top-bar">
       <div class="progress-container">
-        <span class="progress-label">🎨 쓱싹쓱싹:</span>
+        <span class="progress-label">🎨 쓱싹쓱싹</span>
         <div class="progress-bar-bg">
           <div class="progress-fill" :style="{ width: progressWidth + '%' }"></div>
         </div>
       </div>
-      <button class="nav-btn" @click="nextArt">다음 그림 ➡️</button>
+      <button class="nav-btn" @click="nextArt">랜덤 그림 🎲</button>
     </header>
 
     <!-- 도안 및 스크래치 영역 -->
     <main class="canvas-wrapper">
-      <!-- 배경 PNG 이미지 (항상 캔버스 밑에 렌더링) -->
-      <div class="illustration-layer">
-        <img
-          :src="ARTWORKS[currentIdx]"
-          alt="도안 일러스트"
-          class="artwork-img"
-          draggable="false"
-        />
+      <!-- 배경 일러스트 레이어 (모바일: 세로 2개 분할 배치) -->
+      <div class="illustration-layer" :class="{ 'mobile-split': isMobile }">
+        <div
+          v-for="(imgSrc, idx) in currentArts"
+          :key="idx"
+          class="art-box"
+        >
+          <img
+            :src="imgSrc"
+            alt="도안 일러스트"
+            class="artwork-img"
+            draggable="false"
+          />
+        </div>
       </div>
 
       <!-- 상단 스크래치 지우개 캔버스 -->
@@ -264,11 +294,11 @@ onUnmounted(() => {
 }
 
 .top-bar {
-  height: 70px;
+  height: 64px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 20px;
+  padding: 0 16px;
   background-color: rgba(255, 255, 255, 0.9);
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
   z-index: 10;
@@ -278,18 +308,18 @@ onUnmounted(() => {
 .progress-container {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .progress-label {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 800;
   color: #ff6b6b;
 }
 
 .progress-bar-bg {
-  width: 170px;
-  height: 22px;
+  width: 130px;
+  height: 20px;
   background-color: #dfe6e9;
   border-radius: 999px;
   overflow: hidden;
@@ -307,30 +337,30 @@ onUnmounted(() => {
   background-color: #0984e3;
   color: white;
   border: 3px solid #ffffff;
-  padding: 8px 18px;
-  font-size: 17px;
+  padding: 6px 14px;
+  font-size: 15px;
   font-weight: 800;
   border-radius: 999px;
-  box-shadow: 0 4px 0 #074b83;
+  box-shadow: 0 3px 0 #074b83;
   cursor: pointer;
   transition: transform 0.1s;
 }
 
 .nav-btn:active {
-  transform: translateY(3px);
+  transform: translateY(2px);
   box-shadow: 0 1px 0 #074b83;
 }
 
-/* 캔버스 & 이미지 래퍼 */
+/* 캔버스 래퍼 */
 .canvas-wrapper {
   position: relative;
   flex: 1;
-  width: 100%;
-  max-width: 600px;
-  margin: 0 auto;
+  width: 95%;
+  max-width: 680px;
+  margin: 10px auto 14px auto;
   overflow: hidden;
-  /* 부드러운 일체감을 위해 라운드 및 드롭 섀도우 처리 */
-  border-radius: 28px;
+  border-radius: 24px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
 }
 
 .illustration-layer {
@@ -342,19 +372,60 @@ onUnmounted(() => {
   display: flex;
   justify-content: center;
   align-items: center;
-  /* 기존 흰색 배경을 제거하고 전체 배경과 이어지는 투명/은은한 파스텔 그라데이션 적용 */
   background: linear-gradient(135deg, rgba(255, 234, 167, 0.6) 0%, rgba(250, 177, 160, 0.6) 100%);
+  padding: 10px;
+  box-sizing: border-box;
+}
+
+/* 모바일 분할 레이아웃: 위/아래 2개 배치 */
+.illustration-layer.mobile-split {
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;                /* 👈 두 그림 사이의 실제 간격 (원하는 만큼 조절) */
+  padding: 0;
+}
+
+.art-box {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+}
+
+.mobile-split .art-box {
+  width: 100%;
+  height: 45%;             /* 👈 화면 높이에 맞게 크기 확보 */
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .artwork-img {
-  width: 88%;
-  height: 88%;
+  width: 95%;
+  height: 95%;
   object-fit: contain;
   user-select: none;
   -webkit-user-drag: none;
   pointer-events: none;
-  /* 캐릭터가 배경에서 살짝 떠오르도록 부드러운 입체 그림자 */
-  filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.15));
+  filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.15));
+}
+
+.mobile-split .artwork-img {
+  width: 90%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* 🎯 핵심: 위쪽 이미지는 아래로 밀착, 아래쪽 이미지는 위로 밀착 */
+.mobile-split .art-box:first-child .artwork-img {
+  object-position: bottom center; /* 👈 위 그림의 콘텐츠를 바닥(중앙 쪽)으로 붙임 */
+}
+
+.mobile-split .art-box:last-child .artwork-img {
+  object-position: top center;    /* 👈 아래 그림의 콘텐츠를 천장(중앙 쪽)으로 붙임 */
 }
 
 .scratch-canvas {
@@ -383,12 +454,12 @@ onUnmounted(() => {
 }
 
 .celebration-text {
-  font-size: 36px;
+  font-size: clamp(24px, 6vw, 34px);
   font-weight: 900;
   color: #d63031;
   background-color: #fff;
-  padding: 18px 32px;
-  border-radius: 40px;
+  padding: 14px 24px;
+  border-radius: 36px;
   border: 5px solid #fdcb6e;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
   animation: bouncePop 0.8s infinite alternate ease-in-out;
@@ -419,5 +490,28 @@ onUnmounted(() => {
 @keyframes burst {
   0% { transform: translate(-50%, -50%) scale(0.4); opacity: 1; }
   100% { transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) scale(1.4); opacity: 0; }
+}
+
+@media (max-width: 480px) {
+  .top-bar {
+    height: 58px;
+    padding: 0 12px;
+  }
+  .progress-label {
+    font-size: 15px;
+  }
+  .progress-bar-bg {
+    width: 105px;
+    height: 18px;
+  }
+  .nav-btn {
+    padding: 5px 12px;
+    font-size: 13px;
+  }
+  .canvas-wrapper {
+    width: 96%;
+    margin: 6px auto 10px auto;
+    border-radius: 20px;
+  }
 }
 </style>

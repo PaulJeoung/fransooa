@@ -1,7 +1,6 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
 
-// 3~4세 아이들이 직관적으로 누르고 반응을 즐길 수 있는 캐릭터 데이터
 const characters = ref([
   { id: 'shark', name: '', icon: '🦈', bubble: '뚜루루 뚜루~ 🌊', color: '#0984e3' },
   { id: 'pororo', name: '', icon: '🐧', bubble: '노는 게 제일 좋아! ❄️', color: '#ff7675' },
@@ -155,7 +154,7 @@ function triggerInteraction(char, event) {
       <!-- 메인 타이틀 바운스 박스 -->
       <div class="title-container">
         <span class="rainbow-badge">🎪 fransooa`s playground 🎪</span>
-        <h1 class="main-title">fransooa 의 양손 놀이터</h1>
+        <h1 class="main-title">우리 같이 놀아요~</h1>
       </div>
 
       <!-- 인터랙티브 캐릭터 카드 리스트 -->
@@ -169,7 +168,7 @@ function triggerInteraction(char, event) {
           @pointerdown="triggerInteraction(char, $event)"
         >
           <span class="card-icon">{{ char.icon }}</span>
-          <span class="card-name">{{ char.name }}</span>
+          <!-- <span class="card-name">{{ char.name }}</span> -->
 
           <Transition name="bubble-pop">
             <div v-if="activeCard === char.id" class="speech-bubble">
@@ -298,6 +297,7 @@ function triggerInteraction(char, event) {
   font-size: clamp(24px, 5vw, 38px);
   font-weight: 900;
   color: #17a0df;
+  text-align: center;
   letter-spacing: -0.5px;
   text-shadow: 2px 2px 0 #ffffff, 4px 4px 0 #ffeaa7;
   margin: 4px 0 8px 0;
@@ -325,6 +325,8 @@ function triggerInteraction(char, event) {
   cursor: pointer;
   display: flex;
   align-items: center;
+  justify-content: center;
+  text-align: center;
   gap: 8px;
   user-select: none;
   transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -350,7 +352,7 @@ function triggerInteraction(char, event) {
   transform: translateX(-50%);
   background: #2d3436;
   color: #ffffff;
-  font-size: 13px;
+  font-size: 18px;
   font-weight: 800;
   padding: 6px 14px;
   border-radius: 16px;
