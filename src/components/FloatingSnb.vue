@@ -1,13 +1,32 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 
 const isOpen = ref(false);
+const isLandscapeOrDesktop = ref(false); // 👈 화면 방향/기기 판별 변수 추가
 const emit = defineEmits(['navigate']);
 
 function selectMenu(target) {
   emit('navigate', target);
   isOpen.value = false;
 }
+
+// 가로 모드이거나 데스크톱(1024px 이상)인지 체크
+function updateScreenCondition() {
+  const isLandscape = window.matchMedia('(orientation: landscape)').matches;
+  const isDesktop = window.innerWidth >= 1024;
+  isLandscapeOrDesktop.value = isLandscape || isDesktop;
+}
+
+onMounted(() => {
+  updateScreenCondition();
+  window.addEventListener('resize', updateScreenCondition);
+  window.addEventListener('orientationchange', updateScreenCondition);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('resize', updateScreenCondition);
+  window.removeEventListener('orientationchange', updateScreenCondition);
+});
 </script>
 
 <template>
@@ -38,7 +57,7 @@ function selectMenu(target) {
 
         <button class="snb-item" @click="selectMenu('emoji-pop')">
           <span class="menu-icon">🎈</span>
-          <span class="menu-label">이모티콘 팡팡</span>
+          <span class="menu-label">비누방울 팡팡</span>
         </button>
 
         <button class="snb-item" @click="selectMenu('animal-puzzle')">
@@ -47,11 +66,20 @@ function selectMenu(target) {
         </button>
 
         <button class="snb-item" @click="selectMenu('card-match')">
-          <span class="menu-icon">🃏</span>
+          <span class="menu-icon">🎴</span>
           <span class="menu-label">짝꿍 찾기 놀이</span>
         </button>
-      </div>
 
+        <!-- 가로 모드 / 데스크톱 환경에서만 정상 노출 -->
+        <button
+          v-if="isLandscapeOrDesktop"
+          class="snb-item versus-btn"
+          @click="selectMenu('emoji-pop-versus')"
+        >
+          <span class="menu-icon">⚔️</span>
+          <span class="menu-label">비누방울 팡팡 대결 🔥</span>
+        </button>
+      </div>
     </Transition>
 
     <!-- 플로팅 토글 버튼 (왼쪽 하단 고정) -->
@@ -157,6 +185,12 @@ function selectMenu(target) {
 
 .snb-item.home-btn .menu-label {
   color: #ffffff;
+}
+
+.snb-item.versus-btn {
+  background: #fff9db;
+  border-color: #ffd43b;
+  color: #d63031;
 }
 
 /* 정렬을 위한 고정 너비 이모지 */

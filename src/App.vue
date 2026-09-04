@@ -9,6 +9,7 @@ import TraceDrawing from './components/games/TraceDrawing.vue';
 import AnimalPiano from './components/games/AnimalPiano.vue';
 import AnimalPuzzle from './components/games/AnimalPuzzle.vue';
 import CardMatch from './components/games/CardMatch.vue';
+import EmojiPopVersus from './components/games/EmojiPopVersus.vue';
 
 const isLoading = ref(true);
 const currentScreen = ref('home');
@@ -35,7 +36,8 @@ function handleNavigate(target) {
       <AnimalPiano v-else-if="currentScreen === 'animal-piano'" />
       <TraceDrawing v-else-if="currentScreen === 'trace-drawing'" />
       <MagicDrawing v-else-if="currentScreen === 'magic-drawing'" />
-      <EmojiPop v-else-if="currentScreen === 'emoji-pop'" />      
+      <EmojiPop v-else-if="currentScreen === 'emoji-pop'" />
+      <EmojiPopVersus v-else-if="currentScreen === 'emoji-pop-versus'" />   
 
       <FloatingSnb @navigate="handleNavigate" /> <!-- SNB -->
     </template>
