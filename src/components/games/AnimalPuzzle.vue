@@ -7,12 +7,12 @@ const PUZZLE_ITEMS = Array.from({ length: TOTAL_PUZZLES }, (_, i) => {
   return {
     id: num,
     title: `퍼즐 친구 ${num}`,
-    sound: '우와! 쏙 들어갔어요! 🌟',
+    sound: '우와 성공!! 🌟',
     image: `/images/fransooa/${num}.png`
   };
 });
 
-// 8가지 도형 목록 (초승달을 도톰하고 캐릭터가 잘 보이도록 수정)
+// 8가지 도형 목록
 const SHAPES = [
   { id: 'circle', name: '동그라미', clip: 'circle(50% at 50% 50%)' },
   { id: 'triangle', name: '삼각형', clip: 'polygon(50% 0%, 0% 100%, 100% 100%)' },
@@ -20,20 +20,20 @@ const SHAPES = [
   { id: 'pentagon', name: '오각형', clip: 'polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%)' },
   { id: 'hexagon', name: '육각형', clip: 'polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)' },
   { id: 'diamond', name: '마름모', clip: 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)' },
-  { id: 'star', name: '별', clip: 'polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)' },
-  // 🌙 도톰하고 통통한 초승달 모양
-  // { id: 'crescent', name: '초승달', clip: 'path("M 50 0 A 50 50 0 1 0 100 85 A 48 48 0 1 1 50 0 Z")' }
+  { id: 'star', name: '별', clip: 'polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)' }
 ];
 
 // 게임 상태
-const currentPieces = ref([]); // 현재 화면의 퍼즐 목록 (2~4개)
+const currentPieces = ref([]);
 const showCelebration = ref(false);
 const isTimeOver = ref(false);
 const sparkles = ref([]);
 const soundLabels = ref([]);
 
-// 10초 타이머
-const timeLeft = ref(10);
+// 타이머 모드 (기본 60초 설정)
+const TIME_MODES = [10, 30, 60];
+const selectedDuration = ref(60);
+const timeLeft = ref(60);
 const isWarning = ref(false);
 let timer = null;
 
@@ -120,18 +120,16 @@ function spawnSparkles(x, y) {
   }, 600);
 }
 
-// 2~4개 무작위 퍼즐 생성 및 최소 20px 이상 간격 확보 배치
 function generatePuzzles() {
-  const count = Math.floor(Math.random() * 3) + 2; // 2 ~ 4개 랜덤
+  const count = Math.floor(Math.random() * 3) + 2;
   const shuffledItems = [...PUZZLE_ITEMS].sort(() => Math.random() - 0.5).slice(0, count);
   const shuffledShapes = [...SHAPES].sort(() => Math.random() - 0.5).slice(0, count);
 
   const width = window.innerWidth;
   const height = window.innerHeight;
-  const pieceSize = 168; // 커진 퍼즐 크기
-  const minGap = 20; // 최소 20px 이상 간격 유지
+  const pieceSize = 168;
+  const minGap = 20;
 
-  // 상단 실루엣 슬롯 X좌표 분할 계산
   const silSectionWidth = width / count;
   const placedPieces = [];
 
@@ -139,11 +137,9 @@ function generatePuzzles() {
     const item = shuffledItems[i];
     const shape = shuffledShapes[i];
 
-    // 1. 실루엣 좌표 (상단 24% ~ 38% 영역)
     const slotX = silSectionWidth * i + silSectionWidth / 2;
     const silY = height * (0.24 + (i % 2 === 0 ? 0 : 0.08));
 
-    // 2. 하단 조각 좌표 (충돌 방지 알고리즘 적용: 다른 조각과 중심 간격 최소 pieceSize + minGap 확보)
     let pieceX = 0;
     let pieceY = 0;
     let attempts = 0;
@@ -158,7 +154,6 @@ function generatePuzzles() {
       pieceX = Math.floor(Math.random() * (pMaxX - pMinX) + pMinX);
       pieceY = Math.floor(Math.random() * (pMaxY - pMinY) + pMinY);
 
-      // 이미 배치된 조각들과의 거리 검사
       const isOverlap = placedPieces.some(p => {
         const dx = p.piecePos.x - pieceX;
         const dy = p.piecePos.y - pieceY;
@@ -184,17 +179,18 @@ function generatePuzzles() {
   currentPieces.value = placedPieces;
 }
 
-// 10초 타이머
+// 타이머 동작
 function startTimer() {
   if (timer) clearInterval(timer);
-  timeLeft.value = 10;
+  timeLeft.value = selectedDuration.value;
   isWarning.value = false;
   isTimeOver.value = false;
 
   timer = setInterval(() => {
     timeLeft.value -= 1;
 
-    if (timeLeft.value <= 3 && timeLeft.value > 0) {
+    // 종료 5초 전부터 경고 점멸 및 비프음
+    if (timeLeft.value <= 5 && timeLeft.value > 0) {
       isWarning.value = true;
       playTick();
     }
@@ -204,6 +200,11 @@ function startTimer() {
       handleTimeOver();
     }
   }, 1000);
+}
+
+function selectDuration(sec) {
+  selectedDuration.value = sec;
+  startRound();
 }
 
 function handleTimeOver() {
@@ -253,7 +254,6 @@ function onPointerUp() {
     const dy = piece.piecePos.y - piece.silhouettePos.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
 
-    // 커진 크기에 맞춰 스냅 반경을 95px로 확대
     if (distance < 95) {
       piece.piecePos = { ...piece.silhouettePos };
       piece.isMatched = true;
@@ -310,7 +310,7 @@ onUnmounted(() => {
 
 <template>
   <div class="puzzle-view" :class="{ 'warning-flash': isWarning }">
-    <!-- 상단 헤더 & 모래시계 타이머 -->
+    <!-- 상단 헤더 & 모드 선택 & 모래시계 타이머 -->
     <header class="puzzle-header">
       <div class="header-content">
         <div class="title-pill">
@@ -318,9 +318,22 @@ onUnmounted(() => {
           <h1>프랑수아 일상 퍼즐</h1>
           <span class="icon">✨</span>
         </div>
+
+        <!-- 10초 / 30초 / 60초 시간 선택 탭 -->
+        <div class="time-mode-selector">
+          <button
+            v-for="sec in TIME_MODES"
+            :key="sec"
+            class="mode-btn"
+            :class="{ active: selectedDuration === sec }"
+            @click="selectDuration(sec)"
+          >
+            {{ sec }}초
+          </button>
+        </div>
         
-        <!-- 모래시계 타이머 -->
-        <div class="timer-badge" :class="{ 'timer-urgent': timeLeft <= 3 }">
+        <!-- 모래시계 타이머 배지 -->
+        <div class="timer-badge" :class="{ 'timer-urgent': timeLeft <= 5 }">
           <span class="hourglass-icon">⏳</span>
           <span class="time-text">{{ timeLeft }}초</span>
         </div>
@@ -331,7 +344,7 @@ onUnmounted(() => {
     <!-- 퍼즐 무대 -->
     <main class="puzzle-stage">
       <template v-for="piece in currentPieces" :key="piece.uid">
-        <!-- 1. 정답 실루엣 틀 (크기 1.35배 확대) -->
+        <!-- 1. 정답 실루엣 틀 -->
         <div
           class="silhouette-slot"
           :style="{ left: piece.silhouettePos.x + 'px', top: piece.silhouettePos.y + 'px' }"
@@ -353,7 +366,7 @@ onUnmounted(() => {
           ></div>
         </div>
 
-        <!-- 2. 드래그 퍼즐 조각 (크기 1.35배 확대) -->
+        <!-- 2. 드래그 퍼즐 조각 -->
         <div
           class="puzzle-piece"
           :class="{ matched: piece.isMatched }"
@@ -459,7 +472,9 @@ onUnmounted(() => {
 .header-content {
   display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .title-pill {
@@ -467,16 +482,44 @@ onUnmounted(() => {
   align-items: center;
   gap: 6px;
   background: #ffffff;
-  padding: 8px 20px;
+  padding: 8px 18px;
   border-radius: 999px;
   box-shadow: 0 6px 14px rgba(0, 0, 0, 0.12);
 }
 
 .title-pill h1 {
-  font-size: 19px;
+  font-size: 18px;
   font-weight: 900;
   color: #ff4757;
   margin: 0;
+}
+
+/* 시간 선택 버튼 그룹 */
+.time-mode-selector {
+  display: inline-flex;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 4px;
+  border-radius: 999px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  gap: 4px;
+}
+
+.mode-btn {
+  border: none;
+  background: transparent;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 900;
+  color: #2f3542;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.mode-btn.active {
+  background: #ff4757;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(255, 71, 87, 0.4);
 }
 
 /* 모래시계 타이머 */
@@ -532,7 +575,6 @@ onUnmounted(() => {
   width: 100%;
 }
 
-/* 1. 정답 실루엣 틀 (175px로 확대) */
 .silhouette-slot {
   position: absolute;
   transform: translate(-50%, -50%);
@@ -569,7 +611,6 @@ onUnmounted(() => {
   z-index: -1;
 }
 
-/* 2. 드래그 퍼즐 조각 (168px로 확대) */
 .puzzle-piece {
   position: absolute;
   transform: translate(-50%, -50%);
@@ -617,7 +658,7 @@ onUnmounted(() => {
   pointer-events: none;
 }
 
-/* 팝업 모달 */
+/* 모달 */
 .modal-backdrop, .celebration-popup {
   position: fixed;
   inset: 0;
@@ -724,5 +765,11 @@ onUnmounted(() => {
 @keyframes popIn {
   0% { transform: scale(0.4); opacity: 0; }
   100% { transform: scale(1); opacity: 1; }
+}
+
+@media (max-width: 480px) {
+  .title-pill h1 { font-size: 16px; }
+  .mode-btn { font-size: 12px; padding: 5px 8px; }
+  .timer-badge { font-size: 15px; padding: 5px 12px; }
 }
 </style>

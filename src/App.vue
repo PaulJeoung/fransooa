@@ -8,6 +8,7 @@ import EmojiPop from './components/games/EmojiPop.vue';
 import TraceDrawing from './components/games/TraceDrawing.vue';
 import AnimalPiano from './components/games/AnimalPiano.vue';
 import AnimalPuzzle from './components/games/AnimalPuzzle.vue';
+import CardMatch from './components/games/CardMatch.vue';
 
 const isLoading = ref(true);
 const currentScreen = ref('home');
@@ -29,6 +30,7 @@ function handleNavigate(target) {
 
     <template v-else> <!-- 화면 라우팅 -->
       <MainHome v-if="currentScreen === 'home'" />
+      <CardMatch v-else-if="currentScreen === 'card-match'" />
       <AnimalPuzzle v-else-if="currentScreen === 'animal-puzzle'" />
       <AnimalPiano v-else-if="currentScreen === 'animal-piano'" />
       <TraceDrawing v-else-if="currentScreen === 'trace-drawing'" />

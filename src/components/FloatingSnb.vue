@@ -15,31 +15,27 @@ function selectMenu(target) {
     <!-- 펼침 메뉴 리스트 -->
     <Transition name="snb-pop">
       <div v-if="isOpen" class="snb-menu">
-        <!-- 1. 메인 홈 -->
+
         <button class="snb-item home-btn" @click="selectMenu('home')">
           <span class="menu-icon">🏠</span>
           <span class="menu-label">메인 놀이터</span>
         </button>
 
-        <!-- 2. 퐁퐁 동물 피아노 -->
         <button class="snb-item" @click="selectMenu('animal-piano')">
           <span class="menu-icon">🎹</span>
           <span class="menu-label">퐁퐁 동물 피아노</span>
         </button>
 
-        <!-- 3. 한글 & 숫자 그리기 -->
         <button class="snb-item" @click="selectMenu('trace-drawing')">
           <span class="menu-icon">✏️</span>
           <span class="menu-label">한글·숫자 그리기</span>
         </button>
 
-        <!-- 4. 매직 컬러링 -->
         <button class="snb-item" @click="selectMenu('magic-drawing')">
           <span class="menu-icon">🎨</span>
           <span class="menu-label">쓱쓱 싹싹 매직 손가락</span>
         </button>
 
-        <!-- 5. 이모티콘 팡팡 -->
         <button class="snb-item" @click="selectMenu('emoji-pop')">
           <span class="menu-icon">🎈</span>
           <span class="menu-label">이모티콘 팡팡</span>
@@ -49,7 +45,13 @@ function selectMenu(target) {
           <span class="menu-icon">🧩</span>
           <span class="menu-label">프랑수아를 맞춰요</span>
         </button>
+
+        <button class="snb-item" @click="selectMenu('card-match')">
+          <span class="menu-icon">🃏</span>
+          <span class="menu-label">짝꿍 찾기 놀이</span>
+        </button>
       </div>
+
     </Transition>
 
     <!-- 플로팅 토글 버튼 (왼쪽 하단 고정) -->
